@@ -1,0 +1,2 @@
+# scalescope
+Visualise Tailscale ACLs
