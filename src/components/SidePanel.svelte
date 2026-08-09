@@ -152,6 +152,16 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     z-index: 10;
   }
+  @media (max-width: 768px) {
+    .side-panel {
+      left: 12px;
+      right: 12px;
+      width: auto;
+      top: auto;
+      bottom: 64px;
+      max-height: 60vh;
+    }
+  }
   .header {
     display: flex;
     justify-content: space-between;

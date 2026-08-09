@@ -6,19 +6,29 @@
     activeLayers: Set<EdgeLayer>;
     filterKinds: Set<string>;
     searchQuery: string;
+    className?: string;
     onToggleLayer: (layer: EdgeLayer) => void;
     onToggleKind: (kind: string) => void;
     onClearKinds: () => void;
     onSearchChange: (query: string) => void;
   }
 
-  let { activeLayers, filterKinds, searchQuery, onToggleLayer, onToggleKind, onClearKinds, onSearchChange }: Props = $props();
+  let {
+    activeLayers,
+    filterKinds,
+    searchQuery,
+    className = "",
+    onToggleLayer,
+    onToggleKind,
+    onClearKinds,
+    onSearchChange,
+  }: Props = $props();
 
   const LAYERS: EdgeLayer[] = ["acl", "grant", "ssh", "test", "tagOwner", "groupMember", "hostAlias"];
   const KINDS: NodeKind[] = ["user", "group", "tag", "autogroup", "host", "ip", "cidr", "svc", "wildcard", "ipset"];
 </script>
 
-<div class="filter-bar">
+<div class="filter-bar {className}">
   <div class="search">
     <input
       type="text"
@@ -74,6 +84,17 @@
     backdrop-filter: blur(12px);
     z-index: 10;
     width: 260px;
+  }
+  @media (max-width: 768px) {
+    .filter-bar {
+      display: none;
+    }
+    .filter-bar.mobile-open {
+      display: block;
+      width: calc(100vw - 24px);
+      bottom: 64px;
+      right: 12px;
+    }
   }
   .search {
     margin-bottom: 10px;

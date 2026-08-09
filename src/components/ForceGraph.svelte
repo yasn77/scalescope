@@ -403,6 +403,7 @@
     width: 100%;
     height: 100%;
     position: relative;
+    touch-action: none;
   }
   svg {
     display: block;

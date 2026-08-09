@@ -169,6 +169,9 @@
       handleApplyPolicy(appState.policyText);
     }
   });
+
+  let showLegend = $state(false);
+  let showFilters = $state(false);
 </script>
 
 <div class="app" style="background: {themeColors.bg}; color: {themeColors.text}">
@@ -207,8 +210,9 @@
       <button class="start-btn" onclick={handleOpenEditor}>Load a Policy File</button>
     </div>
   {/if}
-  <Legend />
+  <Legend className={showLegend ? "mobile-open" : ""} />
   <FilterBar
+    className={showFilters ? "mobile-open" : ""}
     activeLayers={appState.activeLayers}
     filterKinds={appState.filterKinds}
     searchQuery={appState.searchQuery}
@@ -226,6 +230,14 @@
       selectEdge(appState, null);
     }}
   />
+  <div class="mobile-fabs">
+    <button class="fab" class:active={showLegend} onclick={() => (showLegend = !showLegend)} title="Legend">
+      <span>⬡</span>
+    </button>
+    <button class="fab" class:active={showFilters} onclick={() => (showFilters = !showFilters)} title="Filters">
+      <span>⚙</span>
+    </button>
+  </div>
   <EditorOverlay
     open={appState.editorOpen}
     policyText={appState.policyText}
@@ -306,5 +318,38 @@
   }
   .start-btn:hover {
     opacity: 0.9;
+  }
+  .mobile-fabs {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    display: none;
+    gap: 8px;
+    z-index: 11;
+  }
+  .fab {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+  .fab.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  @media (max-width: 768px) {
+    .mobile-fabs {
+      display: flex;
+    }
   }
 </style>

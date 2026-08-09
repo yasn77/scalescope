@@ -143,6 +143,32 @@
     flex-direction: column;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   }
+  @media (max-width: 768px) {
+    .panel {
+      width: 100vw;
+      max-width: 100vw;
+      max-height: 100vh;
+      border-radius: 0;
+      border: none;
+    }
+    .toolbar {
+      padding: 10px 16px;
+    }
+    .samples {
+      gap: 4px;
+    }
+    .sample-btn {
+      padding: 6px 10px;
+      font-size: 10px;
+    }
+    .btn {
+      padding: 12px 16px;
+      font-size: 13px;
+    }
+    .actions {
+      padding: 12px 16px;
+    }
+  }
   .header {
     display: flex;
     justify-content: space-between;

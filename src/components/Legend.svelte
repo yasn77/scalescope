@@ -2,12 +2,18 @@
   import { nodeColor, nodeKindLabel, edgeLayerColor, layerLabel, protoColor } from "../lib/color";
   import type { NodeKind, EdgeLayer } from "../lib/model";
 
+  interface Props {
+    className?: string;
+  }
+
+  let { className = "" }: Props = $props();
+
   const NODE_KINDS: NodeKind[] = ["user", "group", "tag", "autogroup", "host", "ip", "cidr", "svc", "wildcard", "ipset"];
   const EDGE_LAYERS: EdgeLayer[] = ["acl", "grant", "ssh", "test", "tagOwner", "groupMember", "hostAlias"];
   const PROTOS = ["tcp", "udp", "icmp"];
 </script>
 
-<div class="legend">
+<div class="legend {className}">
   <div class="section">
     <div class="section-title">Nodes</div>
     <div class="items">
@@ -56,6 +62,15 @@
     font-size: 11px;
     z-index: 10;
     max-width: 220px;
+  }
+  @media (max-width: 768px) {
+    .legend {
+      display: none;
+    }
+    .legend.mobile-open {
+      display: block;
+      max-width: calc(100vw - 24px);
+    }
   }
   .section {
     margin-bottom: 10px;

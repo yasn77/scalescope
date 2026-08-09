@@ -160,4 +160,18 @@
     border-color: var(--accent);
     color: var(--accent);
   }
+  @media (max-width: 768px) {
+    .center {
+      display: none;
+    }
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      font-size: 18px;
+    }
+    .btn {
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+  }
 </style>
