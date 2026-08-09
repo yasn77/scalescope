@@ -1,5 +1,8 @@
 # ScaleScope
 
+[![Deploy to GitHub Pages](https://github.com/yasn77/scalescope/actions/workflows/deploy.yml/badge.svg)](https://github.com/yasn77/scalescope/actions/workflows/deploy.yml)
+[![GitHub Pages](https://img.shields.io/badge/Live-Demo-blue)](https://yasn77.github.io/scalescope/)
+
 Visualize your Tailscale ACL rules as an interactive force-directed graph.
 
 ## Features
