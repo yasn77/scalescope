@@ -14,10 +14,14 @@
 
   let localText = $state("");
   let fileInput: HTMLInputElement | undefined = $state();
+  let textareaEl: HTMLTextAreaElement | undefined = $state();
   let prevOpen = false;
 
   $effect(() => {
-    if (open && !prevOpen) localText = policyText;
+    if (open && !prevOpen) {
+      localText = policyText;
+      setTimeout(() => textareaEl?.focus(), 0);
+    }
     prevOpen = open;
   });
 
@@ -29,6 +33,18 @@
   function handleSample(sample: SamplePolicy): void {
     localText = sample.content;
     onTextChange(sample.content);
+  }
+
+  async function handlePasteFromClipboard(): Promise<void> {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        localText = text;
+        onTextChange(text);
+      }
+    } catch {
+      textareaEl?.focus();
+    }
   }
 
   function handleFileUpload(event: Event): void {
@@ -69,6 +85,7 @@
       </div>
       <div class="toolbar">
         <button class="btn" onclick={() => fileInput?.click()}>Upload File</button>
+        <button class="btn" onclick={handlePasteFromClipboard}>Paste from Clipboard</button>
         <input bind:this={fileInput} type="file" accept=".json,.hujson,.txt" hidden onchange={handleFileUpload} />
         <div class="samples">
           <span class="label">Samples:</span>
@@ -85,6 +102,7 @@
         ondragover={handleDragOver}
       >
         <textarea
+          bind:this={textareaEl}
           bind:value={localText}
           placeholder="Paste your Tailscale policy file here (huJSON)..."
           spellcheck="false"
