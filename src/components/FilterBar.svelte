@@ -8,12 +8,13 @@
     searchQuery: string;
     onToggleLayer: (layer: EdgeLayer) => void;
     onToggleKind: (kind: string) => void;
+    onClearKinds: () => void;
     onSearchChange: (query: string) => void;
   }
 
-  let { activeLayers, filterKinds, searchQuery, onToggleLayer, onToggleKind, onSearchChange }: Props = $props();
+  let { activeLayers, filterKinds, searchQuery, onToggleLayer, onToggleKind, onClearKinds, onSearchChange }: Props = $props();
 
-  const LAYERS: EdgeLayer[] = ["acl", "grant", "ssh", "test", "tagOwner", "groupMember"];
+  const LAYERS: EdgeLayer[] = ["acl", "grant", "ssh", "test", "tagOwner", "groupMember", "hostAlias"];
   const KINDS: NodeKind[] = ["user", "group", "tag", "autogroup", "host", "ip", "cidr", "svc", "wildcard", "ipset"];
 </script>
 
@@ -55,7 +56,7 @@
         </button>
       {/each}
       {#if filterKinds.size > 0}
-        <button class="chip clear" onclick={() => filterKinds.forEach((k) => onToggleKind(k))}>Clear</button>
+        <button class="chip clear" onclick={onClearKinds}>Clear</button>
       {/if}
     </div>
   </div>

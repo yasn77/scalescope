@@ -109,6 +109,16 @@
               </div>
             </div>
           {/if}
+          {#if selectedEdge.rules.some((r) => r.action)}
+            <div class="section">
+              <div class="section-title">Actions</div>
+              <div class="port-list">
+                {#each selectedEdge.rules.filter((r) => r.action) as rule}
+                  <span class="port-chip">{rule.action}</span>
+                {/each}
+              </div>
+            </div>
+          {/if}
           <div class="section">
             <div class="section-title">Rules ({selectedEdge.rules.length})</div>
             <div class="rule-list">

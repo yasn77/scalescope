@@ -72,6 +72,7 @@ const EDGE_LAYER_COLORS: Record<EdgeLayer, string> = {
   test: "#ef4444",
   tagOwner: "#8b5cf6",
   groupMember: "#64748b",
+  hostAlias: "#6366f1",
 };
 
 const PROTO_COLORS: Record<string, string> = {
@@ -136,6 +137,7 @@ export function layerLabel(layer: EdgeLayer): string {
     test: "Test",
     tagOwner: "Tag Owner",
     groupMember: "Membership",
+    hostAlias: "Host Alias",
   };
   return labels[layer] ?? layer;
 }

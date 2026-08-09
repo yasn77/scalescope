@@ -1,5 +1,5 @@
 import { classifySelector, selectorLabel, type SelectorType } from "./classify";
-import { parseDstEntry, parseIpCapability, type DstEntry, type IpCapability } from "./ports";
+import { parseDstEntry, parseIpCapability, type DstEntry } from "./ports";
 
 export type NodeKind = SelectorType;
 
@@ -12,12 +12,13 @@ export interface GraphNode {
   resolved?: string;
 }
 
-export type EdgeLayer = "acl" | "grant" | "ssh" | "test" | "tagOwner" | "groupMember";
+export type EdgeLayer = "acl" | "grant" | "ssh" | "test" | "tagOwner" | "groupMember" | "hostAlias";
 
 export interface EdgeRule {
   layer: EdgeLayer;
   index: number;
   raw: string;
+  action?: string;
   ports?: string;
   proto?: string;
   users?: string[];
@@ -97,7 +98,7 @@ function addEdge(
   layer: EdgeLayer,
   rule: EdgeRule
 ): void {
-  const key = `${source}→${target}::${layer}`;
+  const key = `${source}\u0000${target}\u0000${layer}`;
   if (map.has(key)) {
     const edge = map.get(key)!;
     edge.rules.push(rule);
@@ -134,17 +135,20 @@ export function buildGraphModel(data: Record<string, unknown>): GraphModel {
       addEdge(edgeMap, groupName, member, "groupMember", {
         layer: "groupMember",
         index: 0,
-        raw: `group:${groupName} → ${member}`,
+        raw: `${groupName} → ${member}`,
       });
     }
   }
 
   for (const [alias, target] of Object.entries(hosts)) {
+    if (alias.includes("@")) {
+      warnings.push(`Host alias "${alias}" contains '@' which is not allowed`);
+    }
     addNode(nodeMap, alias, undefined, typeof target === "string" ? target : undefined);
     if (typeof target === "string") {
       addNode(nodeMap, target);
-      addEdge(edgeMap, alias, target, "groupMember", {
-        layer: "groupMember",
+      addEdge(edgeMap, alias, target, "hostAlias", {
+        layer: "hostAlias",
         index: 0,
         raw: `${alias} = ${target}`,
       });
@@ -164,6 +168,9 @@ export function buildGraphModel(data: Record<string, unknown>): GraphModel {
   }
 
   for (const [tag, owners] of Object.entries(tagOwners)) {
+    if (!tag.startsWith("tag:")) {
+      warnings.push(`tagOwners key "${tag}" does not start with "tag:"`);
+    }
     addNode(nodeMap, tag);
     for (const owner of asStringArray(owners)) {
       addNode(nodeMap, owner);
@@ -182,16 +189,21 @@ export function buildGraphModel(data: Record<string, unknown>): GraphModel {
     const srcs = asStringArray(r.src);
     const dsts = asStringArray(r.dst);
     const proto = typeof r.proto === "string" ? r.proto : undefined;
+    const action = typeof r.action === "string" ? r.action : undefined;
     for (const src of srcs) {
       addNode(nodeMap, src);
       for (const dst of dsts) {
         const parsed: DstEntry = parseDstEntry(dst);
+        if (parsed.ports.kind === "all" && !dst.endsWith(":*") && !dst.endsWith("*")) {
+          warnings.push(`ACL rule #${idx}: could not parse port from "${dst}", treating as wildcard`);
+        }
         addNode(nodeMap, parsed.host);
         const portSummary = parsed.ports.raw;
         addEdge(edgeMap, src, parsed.host, "acl", {
           layer: "acl",
           index: idx,
           raw: dst,
+          action,
           ports: portSummary,
           proto,
         });
@@ -249,6 +261,7 @@ export function buildGraphModel(data: Record<string, unknown>): GraphModel {
     const srcs = asStringArray(r.src);
     const dsts = asStringArray(r.dst);
     const users = asStringArray(r.users);
+    const action = typeof r.action === "string" ? r.action : undefined;
     for (const src of srcs) {
       addNode(nodeMap, src);
       for (const dst of dsts) {
@@ -257,6 +270,7 @@ export function buildGraphModel(data: Record<string, unknown>): GraphModel {
           layer: "ssh",
           index: idx,
           raw: `${src} → ${dst}`,
+          action,
           users,
         });
       }
@@ -272,6 +286,7 @@ export function buildGraphModel(data: Record<string, unknown>): GraphModel {
     addNode(nodeMap, src);
     const accepts = asStringArray(t.accept);
     const denies = asStringArray(t.deny);
+    const proto = typeof t.proto === "string" ? t.proto : undefined;
     for (const dst of accepts) {
       const parsed = parseDstEntry(dst);
       addNode(nodeMap, parsed.host);
@@ -279,6 +294,7 @@ export function buildGraphModel(data: Record<string, unknown>): GraphModel {
         layer: "test",
         index: idx,
         raw: `accept: ${dst}`,
+        proto,
         ports: parsed.ports.raw,
         accept: true,
       });
@@ -290,6 +306,7 @@ export function buildGraphModel(data: Record<string, unknown>): GraphModel {
         layer: "test",
         index: idx,
         raw: `deny: ${dst}`,
+        proto,
         ports: parsed.ports.raw,
         accept: false,
       });

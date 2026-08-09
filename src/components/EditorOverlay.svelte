@@ -14,9 +14,11 @@
 
   let localText = $state("");
   let fileInput: HTMLInputElement | undefined = $state();
+  let prevOpen = false;
 
   $effect(() => {
-    if (open) localText = policyText;
+    if (open && !prevOpen) localText = policyText;
+    prevOpen = open;
   });
 
   function handleApply(): void {

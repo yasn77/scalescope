@@ -3,7 +3,7 @@
   import type { NodeKind, EdgeLayer } from "../lib/model";
 
   const NODE_KINDS: NodeKind[] = ["user", "group", "tag", "autogroup", "host", "ip", "cidr", "svc", "wildcard", "ipset"];
-  const EDGE_LAYERS: EdgeLayer[] = ["acl", "grant", "ssh", "test", "tagOwner", "groupMember"];
+  const EDGE_LAYERS: EdgeLayer[] = ["acl", "grant", "ssh", "test", "tagOwner", "groupMember", "hostAlias"];
   const PROTOS = ["tcp", "udp", "icmp"];
 </script>
 

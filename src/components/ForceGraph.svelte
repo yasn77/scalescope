@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import * as d3 from "d3";
-  import type { GraphModel, GraphNode, GraphEdge, EdgeLayer } from "../lib/model";
-  import { nodeColor, nodeShape, edgeColor, edgeLayerColor, nodeKindLabel } from "../lib/color";
+  import type { GraphModel, GraphEdge, EdgeLayer, NodeKind } from "../lib/model";
+  import { nodeColor, nodeShape, edgeColor, edgeLayerColor } from "../lib/color";
+  import { isSourceLike, isDestLike } from "../lib/classify";
   import type { ThemeColors } from "../lib/color";
 
   interface Props {
@@ -41,13 +42,14 @@
 
   let svgEl: SVGSVGElement | undefined = $state();
   let simulation: d3.Simulation<SimNode, SimLink> | undefined;
-  let width = 800;
-  let height = 600;
+  let width = $state(800);
+  let height = $state(600);
+  let zoomBehavior: d3.ZoomBehavior<SVGSVGElement, unknown> | undefined;
 
   interface SimNode extends d3.SimulationNodeDatum {
     id: string;
     label: string;
-    kind: string;
+    kind: NodeKind;
     raw: string;
     members?: string[];
     resolved?: string;
@@ -60,6 +62,19 @@
     protos: string[];
     rules: unknown[];
   }
+
+  let adjacency = $derived.by(() => {
+    const adj = new Map<string, Set<string>>();
+    if (!model) return adj;
+    for (const e of model.edges) {
+      if (!activeLayers.has(e.layer)) continue;
+      if (!adj.has(e.source)) adj.set(e.source, new Set());
+      if (!adj.has(e.target)) adj.set(e.target, new Set());
+      adj.get(e.source)!.add(e.target);
+      adj.get(e.target)!.add(e.source);
+    }
+    return adj;
+  });
 
   function getFilteredData(): { nodes: SimNode[]; links: SimLink[] } {
     if (!model) return { nodes: [], links: [] };
@@ -83,44 +98,18 @@
   }
 
   function isNodeHighlighted(nodeId: string): boolean {
-    if (hoveredNodeId === nodeId) return true;
-    if (selectedNodeId === nodeId) return true;
-    if (hoveredNodeId && model) {
-      const hovered = model.nodes.find((n) => n.id === hoveredNodeId);
-      if (hovered) {
-        const connected = model.edges.some(
-          (e) =>
-            activeLayers.has(e.layer) &&
-            ((e.source === hoveredNodeId && e.target === nodeId) ||
-              (e.target === hoveredNodeId && e.source === nodeId))
-        );
-        if (connected) return true;
-      }
-    }
-    if (selectedNodeId && model) {
-      const connected = model.edges.some(
-        (e) =>
-          activeLayers.has(e.layer) &&
-          ((e.source === selectedNodeId && e.target === nodeId) ||
-            (e.target === selectedNodeId && e.source === nodeId))
-      );
-      if (connected) return true;
-    }
+    if (hoveredNodeId === nodeId || selectedNodeId === nodeId) return true;
+    const focusId = hoveredNodeId ?? selectedNodeId;
+    if (focusId && adjacency.get(focusId)?.has(nodeId)) return true;
     if (searchQuery && nodeMatchesSearch(nodeId)) return true;
     return false;
   }
 
-  function isEdgeHighlighted(edgeId: string): boolean {
-    if (hoveredEdgeId === edgeId) return true;
-    if (selectedEdgeId === edgeId) return true;
-    if (hoveredNodeId && model) {
-      const edge = model.edges.find((e) => e.id === edgeId);
-      if (edge && (edge.source === hoveredNodeId || edge.target === hoveredNodeId)) return true;
-    }
-    if (selectedNodeId && model) {
-      const edge = model.edges.find((e) => e.id === edgeId);
-      if (edge && (edge.source === selectedNodeId || edge.target === selectedNodeId)) return true;
-    }
+  function isEdgeHighlighted(edge: GraphEdge | undefined): boolean {
+    if (!edge) return false;
+    if (edge.id === hoveredEdgeId || edge.id === selectedEdgeId) return true;
+    const focusId = hoveredNodeId ?? selectedNodeId;
+    if (focusId && (edge.source === focusId || edge.target === focusId)) return true;
     return false;
   }
 
@@ -131,10 +120,10 @@
     return !isNodeHighlighted(nodeId);
   }
 
-  function isEdgeDimmed(edgeId: string): boolean {
+  function isEdgeDimmed(edge: GraphEdge | undefined): boolean {
     const hasHover = hoveredNodeId || selectedNodeId || hoveredEdgeId || selectedEdgeId;
     if (!hasHover) return false;
-    return !isEdgeHighlighted(edgeId);
+    return !isEdgeHighlighted(edge);
   }
 
   function nodeMatchesSearch(nodeId: string): boolean {
@@ -149,8 +138,8 @@
     sel.each(function (d) {
       const g = d3.select(this);
       g.selectAll("*").remove();
-      const color = nodeColor(d.kind as any);
-      const shape = nodeShape(d.kind as any);
+      const color = nodeColor(d.kind);
+      const shape = nodeShape(d.kind);
       const r = 20;
       if (shape === "circle") {
         g.append("circle").attr("r", r).attr("fill", color).attr("stroke", theme.text).attr("stroke-width", 1.5);
@@ -199,7 +188,10 @@
 
   function initGraph(): void {
     if (!svgEl) return;
+    simulation?.stop();
     const svg = d3.select(svgEl);
+    svg.on(".zoom", null);
+    svg.on("click", null);
     svg.selectAll("*").remove();
 
     const { nodes, links } = getFilteredData();
@@ -231,10 +223,10 @@
 
     const g = svg.append("g");
 
-    const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.1, 4]).on("zoom", (event) => {
+    zoomBehavior = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.1, 4]).on("zoom", (event) => {
       g.attr("transform", event.transform);
     });
-    svg.call(zoom);
+    svg.call(zoomBehavior);
 
     const linkG = g.append("g").attr("class", "links");
     const nodeG = g.append("g").attr("class", "nodes");
@@ -301,8 +293,15 @@
       .force("collide", d3.forceCollide(30));
 
     if (layoutMode === "flow") {
-      simulation.force("x", d3.forceX(width / 2).strength(0.05));
-      simulation.force("y", d3.forceY(height / 2).strength(0.05));
+      simulation.force(
+        "x",
+        d3.forceX<SimNode>((d) => {
+          if (isSourceLike(d.raw)) return width * 0.2;
+          if (isDestLike(d.raw)) return width * 0.8;
+          return width * 0.5;
+        }).strength(0.1)
+      );
+      simulation.force("y", d3.forceY(height / 2).strength(0.03));
     }
 
     simulation.on("tick", () => {
@@ -320,13 +319,32 @@
     });
   }
 
+  function updateColors(): void {
+    if (!svgEl || !simulation) return;
+    const svg = d3.select(svgEl);
+    svg.selectAll<SVGGElement, SimNode>("g.nodes > g").each(function (d) {
+      const g = d3.select(this);
+      const color = nodeColor(d.kind);
+      g.selectAll("circle, rect, polygon").attr("fill", color).attr("stroke", theme.text);
+      g.select("text").attr("fill", theme.text);
+    });
+    svg
+      .selectAll<SVGLineElement, SimLink>("g.links > line")
+      .attr("stroke", (d) => edgeColor(d.layer, d.protos));
+    svg.select("marker path").attr("fill", theme.textMuted);
+    svg.select("text").attr("fill", theme.textMuted);
+  }
+
   function updateHighlights(): void {
     if (!svgEl) return;
     const svg = d3.select(svgEl);
     svg.selectAll<SVGGElement, SimNode>("g.nodes > g").attr("opacity", (d) => (isDimmed(d.id) ? 0.2 : 1));
     svg
       .selectAll<SVGLineElement, SimLink>("g.links > line")
-      .attr("opacity", (d) => (isEdgeDimmed(d.id) ? 0.1 : 1));
+      .attr("opacity", (d) => {
+        const edge = model?.edges.find((e) => e.id === d.id);
+        return isEdgeDimmed(edge) ? 0.1 : 1;
+      });
   }
 
   onMount(() => {
@@ -337,6 +355,10 @@
         if (svgEl) {
           svgEl.setAttribute("width", String(width));
           svgEl.setAttribute("height", String(height));
+        }
+        if (simulation) {
+          (simulation.force("center") as d3.ForceCenter<SimNode>)?.x(width / 2)?.y(height / 2);
+          simulation.alpha(0.3).restart();
         }
       }
     });
@@ -349,9 +371,13 @@
     model;
     activeLayers;
     layoutMode;
-    theme;
     filterKinds;
     initGraph();
+  });
+
+  $effect(() => {
+    theme;
+    updateColors();
   });
 
   $effect(() => {

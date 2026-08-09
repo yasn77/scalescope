@@ -54,6 +54,33 @@ describe("classifySelector", () => {
     expect(classifySelector("192.168.1.1-192.168.1.10")).toBe("range");
   });
 
+  it("rejects invalid IPv4 octets", () => {
+    expect(classifySelector("999.999.999.999")).toBe("unknown");
+    expect(classifySelector("256.1.1.1")).toBe("unknown");
+    expect(classifySelector("1.2.3.999")).toBe("unknown");
+  });
+
+  it("rejects invalid CIDR prefixes", () => {
+    expect(classifySelector("10.0.0.0/99")).toBe("unknown");
+    expect(classifySelector("10.0.0.0/33")).toBe("unknown");
+  });
+
+  it("classifies bare IPv6 addresses", () => {
+    expect(classifySelector("2001:db8::1")).toBe("ip");
+    expect(classifySelector("fe80::1")).toBe("ip");
+    expect(classifySelector("::1")).toBe("ip");
+  });
+
+  it("classifies bracketed IPv6 addresses", () => {
+    expect(classifySelector("[2001:db8::1]")).toBe("ip");
+    expect(classifySelector("[::1]")).toBe("ip");
+  });
+
+  it("rejects invalid IPv6", () => {
+    expect(classifySelector(":::::")).toBe("unknown");
+    expect(classifySelector("gggg::1")).toBe("unknown");
+  });
+
   it("classifies hosts", () => {
     expect(classifySelector("frontend-server-01")).toBe("host");
     expect(classifySelector("dev-network")).toBe("host");

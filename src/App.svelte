@@ -119,37 +119,56 @@
     appState.searchQuery = query;
   }
 
+  function handleClearKinds(): void {
+    appState.filterKinds = new Set();
+  }
+
   function handleResetZoom(): void {
     window.dispatchEvent(new CustomEvent("scalescope:reset-zoom"));
   }
 
   function handleExportPng(): void {
-    const svg = document.querySelector(".graph-container svg");
+    const svg = document.querySelector(".graph-container svg") as SVGSVGElement | null;
     if (!svg) return;
-    const canvas = document.createElement("canvas");
+    const clone = svg.cloneNode(true) as SVGSVGElement;
     const rect = svg.getBoundingClientRect();
-    canvas.width = rect.width * 2;
-    canvas.height = rect.height * 2;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.scale(2, 2);
-    const data = new XMLSerializer().serializeToString(svg);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width", String(rect.width));
+    clone.setAttribute("height", String(rect.height));
+    const data = new XMLSerializer().serializeToString(clone);
+    const svgBlob = new Blob([data], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(svgBlob);
     const img = new Image();
     img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = rect.width * 2;
+      canvas.height = rect.height * 2;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.scale(2, 2);
       ctx.fillStyle = resolvedTheme === "dark" ? "#0b0f14" : "#f8fafc";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, rect.width, rect.height);
       ctx.drawImage(img, 0, 0);
-      const a = document.createElement("a");
-      a.download = "scalescope.png";
-      a.href = canvas.toDataURL("image/png");
-      a.click();
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const a = document.createElement("a");
+        a.download = "scalescope.png";
+        a.href = URL.createObjectURL(blob);
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, "image/png");
     };
-    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(data)));
+    img.src = url;
   }
 
-  if (appState.policyText) {
-    handleApplyPolicy(appState.policyText);
-  }
+  let initialized = false;
+  $effect(() => {
+    if (!initialized && appState.policyText) {
+      initialized = true;
+      handleApplyPolicy(appState.policyText);
+    }
+  });
 </script>
 
 <div class="app" style="background: {themeColors.bg}; color: {themeColors.text}">
@@ -195,6 +214,7 @@
     searchQuery={appState.searchQuery}
     onToggleLayer={handleToggleLayer}
     onToggleKind={handleToggleKind}
+    onClearKinds={handleClearKinds}
     onSearchChange={handleSearchChange}
   />
   <SidePanel

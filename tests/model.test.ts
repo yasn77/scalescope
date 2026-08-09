@@ -267,4 +267,94 @@ describe("buildGraphModel", () => {
     expect(edge).toBeDefined();
     expect(edge?.rules[0].proto).toBe("tcp");
   });
+
+  it("captures ACL action field", () => {
+    const data = {
+      acls: [
+        {
+          action: "accept",
+          src: ["alice@example.com"],
+          dst: ["tag:web:443"],
+        },
+      ],
+    };
+    const model = buildGraphModel(data);
+    const edge = model.edges.find(
+      (e) => e.source === "alice@example.com" && e.target === "tag:web"
+    );
+    expect(edge).toBeDefined();
+    expect(edge?.rules[0].action).toBe("accept");
+  });
+
+  it("captures SSH action field", () => {
+    const data = {
+      ssh: [
+        {
+          action: "check",
+          src: ["autogroup:member"],
+          dst: ["autogroup:self"],
+          users: ["autogroup:nonroot"],
+        },
+      ],
+    };
+    const model = buildGraphModel(data);
+    const edge = model.edges.find(
+      (e) => e.source === "autogroup:member" && e.target === "autogroup:self"
+    );
+    expect(edge).toBeDefined();
+    expect(edge?.rules[0].action).toBe("check");
+  });
+
+  it("captures proto in test rules", () => {
+    const data = {
+      tests: [
+        {
+          src: "alice@example.com",
+          proto: "udp",
+          accept: ["tag:web:443"],
+        },
+      ],
+    };
+    const model = buildGraphModel(data);
+    const edge = model.edges.find(
+      (e) => e.source === "alice@example.com" && e.target === "tag:web" && e.layer === "test"
+    );
+    expect(edge).toBeDefined();
+    expect(edge?.rules[0].proto).toBe("udp");
+  });
+
+  it("uses hostAlias layer for host aliases", () => {
+    const data = {
+      hosts: {
+        "frontend-server": "100.100.123.123",
+      },
+    };
+    const model = buildGraphModel(data);
+    const edge = model.edges.find(
+      (e) => e.source === "frontend-server" && e.target === "100.100.123.123"
+    );
+    expect(edge).toBeDefined();
+    expect(edge?.layer).toBe("hostAlias");
+  });
+
+  it("generates warnings for invalid tagOwners keys", () => {
+    const data = {
+      tagOwners: {
+        "frontend": ["autogroup:admin"],
+      },
+    };
+    const model = buildGraphModel(data);
+    expect(model.warnings.length).toBeGreaterThan(0);
+    expect(model.warnings.some((w) => w.includes("frontend"))).toBe(true);
+  });
+
+  it("generates warnings for host aliases containing @", () => {
+    const data = {
+      hosts: {
+        "bad@host": "100.100.123.123",
+      },
+    };
+    const model = buildGraphModel(data);
+    expect(model.warnings.some((w) => w.includes("@"))).toBe(true);
+  });
 });

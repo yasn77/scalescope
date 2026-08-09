@@ -37,7 +37,7 @@ export function parseHujson(input: string): ParseResult | ParseError {
     return { ok: false, error: { line: 1, column: 1, offset: 0, message: "Input is empty" } };
   }
   try {
-    const ast = hujsonParse(trimmed);
+    const ast = hujsonParse(input);
     const json = toJsonValue(ast);
     if (typeof json !== "object" || json === null || Array.isArray(json)) {
       return { ok: false, error: { line: 1, column: 1, offset: 0, message: "Policy file must be a JSON object" } };
@@ -45,7 +45,7 @@ export function parseHujson(input: string): ParseResult | ParseError {
     return { ok: true, data: json as Record<string, unknown> };
   } catch (e) {
     if (e instanceof HujsonSyntaxError) {
-      const { line, column } = offsetToLineCol(trimmed, e.offset);
+      const { line, column } = offsetToLineCol(input, e.offset);
       return { ok: false, error: { line, column, offset: e.offset, message: e.message } };
     }
     const msg = e instanceof Error ? e.message : String(e);
