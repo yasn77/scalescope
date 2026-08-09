@@ -94,11 +94,13 @@ export function setLayoutMode(state: AppState, mode: "free" | "flow"): void {
 }
 
 export function toggleLayer(state: AppState, layer: EdgeLayer): void {
-  if (state.activeLayers.has(layer)) {
-    state.activeLayers.delete(layer);
+  const next = new Set(state.activeLayers);
+  if (next.has(layer)) {
+    next.delete(layer);
   } else {
-    state.activeLayers.add(layer);
+    next.add(layer);
   }
+  state.activeLayers = next;
 }
 
 export function selectNode(state: AppState, id: string | null): void {

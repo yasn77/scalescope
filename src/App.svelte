@@ -21,7 +21,7 @@
     type AppState,
   } from "./lib/store";
 
-  const appState: AppState = createStore();
+  let appState: AppState = $state(createStore());
 
   let resolvedTheme = $state<"light" | "dark">("dark");
 
@@ -108,11 +108,13 @@
   }
 
   function handleToggleKind(kind: string): void {
-    if (appState.filterKinds.has(kind)) {
-      appState.filterKinds.delete(kind);
+    const next = new Set(appState.filterKinds);
+    if (next.has(kind)) {
+      next.delete(kind);
     } else {
-      appState.filterKinds.add(kind);
+      next.add(kind);
     }
+    appState.filterKinds = next;
   }
 
   function handleSearchChange(query: string): void {
