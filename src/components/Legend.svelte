@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { nodeColor, nodeKindLabel, edgeLayerColor, layerLabel, protoColor } from "../lib/color";
+  import { nodeColor, edgeLayerColor, layerLabel, protoColor } from "../lib/color";
+  import { getIcon, getIconLabel } from "../lib/icons";
   import type { NodeKind, EdgeLayer } from "../lib/model";
 
   interface Props {
@@ -19,8 +20,10 @@
     <div class="items">
       {#each NODE_KINDS as kind}
         <div class="item">
-          <div class="node-swatch" style="background: {nodeColor(kind)}"></div>
-          <span>{nodeKindLabel(kind)}</span>
+          <svg class="node-icon" viewBox="{getIcon(kind).viewBox}" style="color: {nodeColor(kind)}">
+            <path d={getIcon(kind).path} fill="currentColor" />
+          </svg>
+          <span>{getIconLabel(kind)}</span>
         </div>
       {/each}
     </div>
@@ -47,6 +50,10 @@
       {/each}
     </div>
   </div>
+  <div class="section">
+    <div class="section-title">Tip</div>
+    <div class="tip">Click a node to see traffic flow</div>
+  </div>
 </div>
 
 <style>
@@ -61,7 +68,7 @@
     backdrop-filter: blur(12px);
     font-size: 11px;
     z-index: 10;
-    max-width: 220px;
+    max-width: 240px;
   }
   @media (max-width: 768px) {
     .legend {
@@ -97,10 +104,10 @@
     gap: 5px;
     color: var(--text);
   }
-  .node-swatch {
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
+  .node-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
   }
   .edge-swatch {
     width: 14px;
@@ -111,5 +118,10 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
+  }
+  .tip {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-style: italic;
   }
 </style>

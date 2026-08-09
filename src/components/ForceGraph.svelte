@@ -2,8 +2,9 @@
   import { onMount, onDestroy } from "svelte";
   import * as d3 from "d3";
   import type { GraphModel, GraphEdge, EdgeLayer, NodeKind } from "../lib/model";
-  import { nodeColor, nodeShape, edgeColor, edgeLayerColor } from "../lib/color";
+  import { nodeColor, edgeColor, edgeLayerColor } from "../lib/color";
   import { isSourceLike, isDestLike } from "../lib/classify";
+  import { getIcon } from "../lib/icons";
   import type { ThemeColors } from "../lib/color";
 
   interface Props {
@@ -113,6 +114,13 @@
     return false;
   }
 
+  function isEdgeFlowing(edge: GraphEdge | undefined): boolean {
+    if (!edge) return false;
+    const focusId = selectedNodeId;
+    if (focusId && (edge.source === focusId || edge.target === focusId)) return true;
+    return false;
+  }
+
   function isDimmed(nodeId: string): boolean {
     const hasHover = hoveredNodeId || selectedNodeId;
     const hasSearch = searchQuery.length > 0;
@@ -134,50 +142,30 @@
     return node.id.toLowerCase().includes(q) || node.label.toLowerCase().includes(q);
   }
 
-  function renderNodeShape(sel: d3.Selection<SVGGElement, SimNode, SVGGElement, unknown>): void {
+  function renderNodeIcon(sel: d3.Selection<SVGGElement, SimNode, SVGGElement, unknown>): void {
     sel.each(function (d) {
       const g = d3.select(this);
       g.selectAll("*").remove();
       const color = nodeColor(d.kind);
-      const shape = nodeShape(d.kind);
-      const r = 20;
-      if (shape === "circle") {
-        g.append("circle").attr("r", r).attr("fill", color).attr("stroke", theme.text).attr("stroke-width", 1.5);
-      } else if (shape === "rect") {
-        g.append("rect")
-          .attr("x", -r)
-          .attr("y", -r)
-          .attr("width", r * 2)
-          .attr("height", r * 2)
-          .attr("rx", 4)
-          .attr("fill", color)
-          .attr("stroke", theme.text)
-          .attr("stroke-width", 1.5);
-      } else if (shape === "diamond") {
-        g.append("polygon")
-          .attr("points", `0,${-r} ${r},0 0,${r} ${-r},0`)
-          .attr("fill", color)
-          .attr("stroke", theme.text)
-          .attr("stroke-width", 1.5);
-      } else if (shape === "hexagon") {
-        const pts = Array.from({ length: 6 }, (_, i) => {
-          const a = (Math.PI / 3) * i - Math.PI / 2;
-          return `${r * Math.cos(a)},${r * Math.sin(a)}`;
-        }).join(" ");
-        g.append("polygon")
-          .attr("points", pts)
-          .attr("fill", color)
-          .attr("stroke", theme.text)
-          .attr("stroke-width", 1.5);
-      } else if (shape === "triangle") {
-        g.append("polygon")
-          .attr("points", `0,${-r} ${r},${r} ${-r},${r}`)
-          .attr("fill", color)
-          .attr("stroke", theme.text)
-          .attr("stroke-width", 1.5);
-      }
+      const icon = getIcon(d.kind);
+      const s = icon.size;
+      const half = s / 2;
+
+      g.append("circle")
+        .attr("r", half + 4)
+        .attr("fill", color)
+        .attr("fill-opacity", 0.15)
+        .attr("stroke", color)
+        .attr("stroke-width", 2);
+
+      g.append("path")
+        .attr("d", icon.path)
+        .attr("transform", `translate(${-half},${-half})`)
+        .attr("fill", color)
+        .attr("stroke", "none");
+
       g.append("text")
-        .attr("dy", r + 14)
+        .attr("dy", half + 16)
         .attr("text-anchor", "middle")
         .attr("fill", theme.text)
         .attr("font-size", "11px")
@@ -277,7 +265,7 @@
       .on("mouseenter", (event, d) => onNodeHover(d.id))
       .on("mouseleave", () => onNodeHover(null));
 
-    nodeSel.call(renderNodeShape);
+    nodeSel.call(renderNodeIcon);
 
     simulation = d3
       .forceSimulation<SimNode>(nodes)
@@ -325,7 +313,10 @@
     svg.selectAll<SVGGElement, SimNode>("g.nodes > g").each(function (d) {
       const g = d3.select(this);
       const color = nodeColor(d.kind);
-      g.selectAll("circle, rect, polygon").attr("fill", color).attr("stroke", theme.text);
+      const icon = getIcon(d.kind);
+      const half = icon.size / 2;
+      g.select("circle").attr("fill", color).attr("stroke", color);
+      g.select("path").attr("fill", color);
       g.select("text").attr("fill", theme.text);
     });
     svg
@@ -341,9 +332,19 @@
     svg.selectAll<SVGGElement, SimNode>("g.nodes > g").attr("opacity", (d) => (isDimmed(d.id) ? 0.2 : 1));
     svg
       .selectAll<SVGLineElement, SimLink>("g.links > line")
-      .attr("opacity", (d) => {
+      .each(function (d) {
         const edge = model?.edges.find((e) => e.id === d.id);
-        return isEdgeDimmed(edge) ? 0.1 : 1;
+        const dimmed = isEdgeDimmed(edge);
+        const flowing = isEdgeFlowing(edge);
+        const line = d3.select(this);
+        line.attr("opacity", dimmed ? 0.1 : 1);
+        if (flowing) {
+          line.classed("flowing", true);
+          line.attr("stroke-dasharray", "8,4");
+        } else {
+          line.classed("flowing", false);
+          line.attr("stroke-dasharray", d.layer === "ssh" || d.layer === "test" ? "4,2" : "none");
+        }
       });
   }
 
@@ -407,5 +408,16 @@
   }
   svg {
     display: block;
+  }
+  :global(.flowing) {
+    animation: scalescope-flow 0.8s linear infinite;
+  }
+  @keyframes scalescope-flow {
+    from {
+      stroke-dashoffset: 12;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
   }
 </style>
